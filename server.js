@@ -98,6 +98,10 @@ app.get("/api/cases", async (req, res) => {
       source: "error",
       message: "無法從政府開放資料平台取得資料",
       detail: err.message,
+      // 除錯用：Node fetch 的底層錯誤代碼（例如 ENOTFOUND、ECONNREFUSED、
+      // CERT_HAS_EXPIRED 等），能看出是 DNS、連線被拒、還是憑證問題。
+      // 確認問題排除後，建議把這行拿掉，避免對外暴露內部錯誤細節。
+      debugCause: err.cause ? { code: err.cause.code, message: err.cause.message } : null,
     });
   }
 });
