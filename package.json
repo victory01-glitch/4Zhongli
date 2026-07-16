@@ -1,0 +1,15 @@
+{
+  "name": "zhongli-case-dashboard",
+  "version": "0.1.0",
+  "description": "中壢民生案件儀表板 — 議員辦公室共用選民服務工具",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}

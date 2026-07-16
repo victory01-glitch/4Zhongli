@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>中壢民生案件儀表板</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@600;900&family=Noto+Sans+TC:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F1F3EF;
+    --card:#FFFFFF;
+    --ink:#1B2320;
+    --ink-soft:#4A544E;
+    --navy:#1F3A44;
+    --navy-light:#3C6470;
+    --stamp-red:#C13B2E;
+    --stamp-red-soft:#F7E3E0;
+    --stamp-green:#2F6E4F;
+    --stamp-green-soft:#E3EEE7;
+    --amber:#B9822C;
+    --amber-soft:#F5EAD8;
+    --line:#DCE1D9;
+    --shadow:0 1px 2px rgba(27,35,32,0.06), 0 4px 14px rgba(27,35,32,0.05);
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'Noto Sans TC', sans-serif;
+    line-height:1.5;
+    padding:0 0 64px 0;
+  }
+  .mono{font-family:'IBM Plex Mono','Noto Sans TC',monospace;}
+
+  /* ---------- top masthead ---------- */
+  .masthead{
+    background:var(--navy);
+    color:#EFF3EE;
+    padding:28px 32px 24px;
+    position:relative;
+    overflow:hidden;
+  }
+  .masthead::after{
+    content:"";
+    position:absolute;
+    right:-40px; top:-60px;
+    width:220px; height:220px;
+    border:1px solid rgba(255,255,255,0.08);
+    border-radius:50%;
+  }
+  .masthead::before{
+    content:"";
+    position:absolute;
+    right:20px; top:30px;
+    width:140px; height:140px;
+    border:1px solid rgba(255,255,255,0.06);
+    border-radius:50%;
+  }
+  .masthead-inner{max-width:1180px; margin:0 auto; position:relative; z-index:1;}
+  .eyebrow{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px;
+    letter-spacing:0.14em;
+    color:#AFC4C0;
+    text-transform:uppercase;
+    margin-bottom:10px;
+  }
+  h1{
+    font-family:'Noto Serif TC', serif;
+    font-weight:900;
+    font-size:32px;
+    letter-spacing:0.02em;
+    margin-bottom:6px;
+  }
+  .sub{
+    color:#C7D5D0;
+    font-size:14.5px;
+    max-width:560px;
+  }
+  .status-pill{
+    display:inline-flex; align-items:center; gap:7px;
+    margin-top:16px;
+    padding:6px 12px;
+    border-radius:100px;
+    background:rgba(255,255,255,0.08);
+    border:1px solid rgba(255,255,255,0.14);
+    font-size:12.5px;
+    color:#E4ECE9;
+  }
+  .dot{width:7px; height:7px; border-radius:50%; background:#8FD6A8; box-shadow:0 0 0 3px rgba(143,214,168,0.18);}
+  .dot.demo{background:var(--amber); box-shadow:0 0 0 3px rgba(185,130,44,0.2);}
+
+  /* ---------- layout ---------- */
+  .wrap{max-width:1180px; margin:0 auto; padding:0 32px;}
+
+  .notice{
+    margin-top:-1px;
+    background:var(--amber-soft);
+    border:1px solid #E3CFA0;
+    color:#6E5320;
+    font-size:13.5px;
+    padding:12px 16px;
+    border-radius:10px;
+    display:none;
+    gap:8px;
+  }
+  .notice.show{display:flex;}
+
+  /* ---------- stats ---------- */
+  .stats{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:14px;
+    margin:28px 0 26px;
+  }
+  .stat-ticket{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:12px;
+    padding:18px 18px 16px;
+    box-shadow:var(--shadow);
+    position:relative;
+  }
+  .stat-ticket::before{
+    content:"";
+    position:absolute; left:0; top:14px; bottom:14px; width:3px;
+    background:var(--navy-light);
+    border-radius:0 3px 3px 0;
+  }
+  .stat-ticket.warn::before{background:var(--stamp-red);}
+  .stat-num{
+    font-family:'IBM Plex Mono', monospace;
+    font-weight:600;
+    font-size:30px;
+    color:var(--navy);
+  }
+  .stat-ticket.warn .stat-num{color:var(--stamp-red);}
+  .stat-label{font-size:12.5px; color:var(--ink-soft); margin-top:4px;}
+
+  /* ---------- filters ---------- */
+  .filters{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:12px;
+    padding:16px 18px;
+    box-shadow:var(--shadow);
+    display:flex; flex-wrap:wrap; gap:10px 14px; align-items:flex-end;
+  }
+  .field{display:flex; flex-direction:column; gap:6px;}
+  .field label{font-size:11.5px; color:var(--ink-soft); letter-spacing:0.03em;}
+  select, input[type=text]{
+    font-family:'Noto Sans TC', sans-serif;
+    font-size:13.5px;
+    border:1px solid var(--line);
+    background:#FBFBF9;
+    border-radius:8px;
+    padding:9px 10px;
+    color:var(--ink);
+    min-width:150px;
+    outline:none;
+  }
+  select:focus, input[type=text]:focus{border-color:var(--navy-light); box-shadow:0 0 0 3px rgba(60,100,112,0.12);}
+  input[type=text]{min-width:220px;}
+  .chip-row{display:flex; gap:8px; flex-wrap:wrap;}
+  .chip{
+    font-size:12.5px;
+    padding:8px 13px;
+    border-radius:100px;
+    border:1px solid var(--line);
+    background:#FBFBF9;
+    color:var(--ink-soft);
+    cursor:pointer;
+    transition:.12s;
+  }
+  .chip:hover{border-color:var(--navy-light);}
+  .chip.active{background:var(--navy); border-color:var(--navy); color:#fff;}
+  .spacer{flex:1;}
+  .btn-refresh{
+    font-family:'Noto Sans TC', sans-serif;
+    font-size:13px; font-weight:500;
+    border:1px solid var(--navy);
+    background:var(--navy);
+    color:#fff;
+    padding:9px 16px;
+    border-radius:8px;
+    cursor:pointer;
+    display:flex; align-items:center; gap:6px;
+  }
+  .btn-refresh:hover{background:var(--navy-light); border-color:var(--navy-light);}
+  .btn-refresh svg{width:14px; height:14px;}
+  .btn-refresh.loading svg{animation:spin 0.9s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+
+  /* ---------- list ---------- */
+  .list-head{
+    display:flex; align-items:baseline; justify-content:space-between;
+    margin:30px 0 12px;
+  }
+  .list-head h2{
+    font-family:'Noto Serif TC', serif;
+    font-weight:600;
+    font-size:19px;
+  }
+  .list-count{font-size:12.5px; color:var(--ink-soft); font-family:'IBM Plex Mono',monospace;}
+
+  .cases{display:flex; flex-direction:column; gap:10px;}
+  .case{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:12px;
+    padding:16px 18px;
+    box-shadow:var(--shadow);
+    display:grid;
+    grid-template-columns:110px 1fr auto;
+    gap:16px;
+    align-items:center;
+  }
+  .case-id{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px;
+    color:var(--ink-soft);
+  }
+  .case-main .tag-row{display:flex; gap:8px; align-items:center; margin-bottom:6px; flex-wrap:wrap;}
+  .tag{
+    font-size:11.5px;
+    padding:3px 9px;
+    border-radius:100px;
+    background:#EAF0EE;
+    color:var(--navy);
+    font-weight:500;
+  }
+  .tag.overdue{background:var(--stamp-red-soft); color:var(--stamp-red);}
+  .case-addr{font-size:14.5px; font-weight:500; color:var(--ink);}
+  .case-meta{font-size:12.5px; color:var(--ink-soft); margin-top:4px;}
+
+  /* stamp badge — signature element */
+  .stamp{
+    font-family:'Noto Serif TC', serif;
+    font-weight:900;
+    font-size:12.5px;
+    letter-spacing:0.08em;
+    padding:7px 13px;
+    border:2px solid var(--stamp-red);
+    color:var(--stamp-red);
+    border-radius:6px;
+    transform:rotate(-4deg);
+    text-align:center;
+    white-space:nowrap;
+    opacity:0.92;
+  }
+  .stamp.done{border-color:var(--stamp-green); color:var(--stamp-green); transform:rotate(3deg);}
+  .stamp.pending{border-color:var(--amber); color:#8a611f; transform:rotate(-2deg);}
+
+  .empty{
+    text-align:center;
+    padding:60px 20px;
+    color:var(--ink-soft);
+    font-size:14px;
+    background:var(--card);
+    border:1px dashed var(--line);
+    border-radius:12px;
+  }
+
+  footer{
+    max-width:1180px; margin:40px auto 0; padding:0 32px;
+    font-size:12px; color:var(--ink-soft);
+    display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px;
+    border-top:1px solid var(--line);
+    padding-top:16px;
+  }
+  footer a{color:var(--navy-light);}
+
+  @media (max-width:720px){
+    .stats{grid-template-columns:repeat(2,1fr);}
+    .case{grid-template-columns:1fr; align-items:start;}
+    .stamp{justify-self:flex-start;}
+  }
+</style>
+</head>
+<body>
+
+<div class="masthead">
+  <div class="masthead-inner">
+    <div class="eyebrow">選民服務 · 民情儀表板 PROTOTYPE</div>
+    <h1>中壢民生案件儀表板</h1>
+    <div class="sub">彙整桃園市 1999 市政信箱陳情案件，鎖定中壢區，協助辦公室掌握案量與逾期案件。</div>
+    <div class="status-pill"><span class="dot" id="statusDot"></span><span id="statusText">正在連線桃園市政府開放資料平台…</span></div>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="notice" id="notice">
+    <span>⚠</span>
+    <span>目前顯示的是示範資料。瀏覽器直接呼叫政府 API 可能因跨網域限制而失敗，正式上線建議改由後端排程抓取後再提供給網頁查詢（我們上次討論過的架構）。</span>
+  </div>
+
+  <div class="stats">
+    <div class="stat-ticket">
+      <div class="stat-num mono" id="statTotal">–</div>
+      <div class="stat-label">中壢區案件總數</div>
+    </div>
+    <div class="stat-ticket warn">
+      <div class="stat-num mono" id="statPending">–</div>
+      <div class="stat-label">處理中 / 未結案</div>
+    </div>
+    <div class="stat-ticket warn">
+      <div class="stat-num mono" id="statOverdue">–</div>
+      <div class="stat-label">已逾應辦結日</div>
+    </div>
+    <div class="stat-ticket">
+      <div class="stat-num mono" id="statWeek">–</div>
+      <div class="stat-label">近 7 日新增</div>
+    </div>
+  </div>
+
+  <div class="filters">
+    <div class="field">
+      <label>案件類別</label>
+      <select id="fCategory"><option value="">全部類別</option></select>
+    </div>
+    <div class="field">
+      <label>案件狀態</label>
+      <select id="fStatus">
+        <option value="">全部狀態</option>
+        <option value="處理中">處理中</option>
+        <option value="已結案">已結案</option>
+      </select>
+    </div>
+    <div class="field" style="flex:1;">
+      <label>關鍵字（地址 / 里別 / 內容）</label>
+      <input type="text" id="fKeyword" placeholder="例如：中央西路、環中東路、噪音…">
+    </div>
+    <div class="spacer"></div>
+    <button class="btn-refresh" id="btnRefresh">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v6h-6"/></svg>
+      重新抓取
+    </button>
+  </div>
+
+  <div class="filters" style="margin-top:10px; padding:12px 18px;">
+    <div class="chip-row" id="quickRange">
+      <div class="chip active" data-range="all">全部時間</div>
+      <div class="chip" data-range="7">近 7 天</div>
+      <div class="chip" data-range="30">近 30 天</div>
+      <div class="chip" data-range="90">近 3 個月</div>
+    </div>
+    <div class="spacer"></div>
+    <div class="chip-row" id="sortRow">
+      <div class="chip active" data-sort="date">依受理日期</div>
+      <div class="chip" data-sort="urgent">依逾期優先</div>
+    </div>
+  </div>
+
+  <div class="list-head">
+    <h2>陳情案件清單</h2>
+    <div class="list-count mono" id="listCount">0 筆</div>
+  </div>
+
+  <div class="cases" id="caseList"></div>
+  <div class="empty" id="emptyState" style="display:none;">目前的篩選條件下沒有符合的案件，試著放寬類別或時間範圍。</div>
+</div>
+
+<footer>
+  <div>資料來源：桃園市政府資料開放平台 · 桃園市政信箱案件資訊（每日更新）</div>
+  <div>原型版本 · 尚未接後端 · <a href="#" onclick="return false;">議員辦公室共用連結</a></div>
+</footer>
+
+<script>
+// 改成呼叫自己的後端代理，由後端伺服器去打政府 API（伺服器對伺服器沒有 CORS 限制）
+const API_URL = "/api/cases";
+
+// ---- 示範資料：欄位設計對齊政府資料集說明（案件編號/受理日期/案件類別/行政區/案件地址/案件狀態/應辦結日）----
+// 實際串接後，若政府 API 回傳欄位名稱不同，只需要調整 normalizeRecord() 這個函式即可。
+const SAMPLE_DATA = [
+  {id:"TY-1999-240311-0182", date:"2026-07-14", category:"道路坑洞", district:"中壢區", addr:"中央西路二段近元化路口", status:"處理中", due:"2026-07-18", note:"路面凹陷約30公分，夜間視線不佳易發生事故"},
+  {id:"TY-1999-240311-0179", date:"2026-07-13", category:"噪音陳情", district:"中壢區", addr:"環中東路三段住宅區", status:"處理中", due:"2026-07-15", note:"深夜工地施工噪音擾民"},
+  {id:"TY-1999-240311-0177", date:"2026-07-12", category:"違規停車", district:"中壢區", addr:"中大路與新生路口", status:"已結案", due:"2026-07-14", note:"機車違停佔用人行道，已由警方開單"},
+  {id:"TY-1999-240310-0165", date:"2026-07-10", category:"路燈故障", district:"中壢區", addr:"內定新路巷弄", status:"處理中", due:"2026-07-13", note:"路燈連續三天未亮，居民夜間行走危險"},
+  {id:"TY-1999-240310-0158", date:"2026-07-09", category:"水溝阻塞", district:"中壢區", addr:"中平路老街周邊", status:"處理中", due:"2026-07-10", note:"大雨後排水不良，路面淹水約10公分"},
+  {id:"TY-1999-240309-0142", date:"2026-07-08", category:"環境衛生", district:"中壢區", addr:"龍岡路三段市場周邊", status:"已結案", due:"2026-07-09", note:"攤販垃圾未定時清運，異味擾民"},
+  {id:"TY-1999-240308-0130", date:"2026-07-06", category:"違章建築", district:"中壢區", addr:"元化路二段", status:"處理中", due:"2026-07-20", note:"頂樓加蓋疑似違建，鄰居陳情要求查報"},
+  {id:"TY-1999-240307-0121", date:"2026-07-05", category:"交通號誌", district:"中壢區", addr:"中華路與延平路口", status:"處理中", due:"2026-07-07", note:"號誌秒數過短，行人來不及通過"},
+  {id:"TY-1999-240306-0108", date:"2026-07-02", category:"噪音陳情", district:"中壢區", addr:"莊敬路夜市周邊", status:"已結案", due:"2026-07-04", note:"攤商音響音量過大"},
+  {id:"TY-1999-240305-0095", date:"2026-06-29", category:"道路坑洞", district:"中壢區", addr:"復興路近火車站", status:"已結案", due:"2026-07-02", note:"人行道磚塊破損翹起"},
+];
+
+let ALL_CASES = [];
+let state = { category:"", status:"", keyword:"", range:"all", sort:"date" };
+
+function normalizeRecord(raw){
+  // 嘗試對齊多種可能的政府資料欄位命名，實際串接時依 API 回傳結果調整
+  return {
+    id: raw["案件編號"] || raw["caseId"] || raw.id || "-",
+    date: raw["受理日期"] || raw["acceptDate"] || raw.date || "",
+    category: raw["案件類別"] || raw["category"] || "未分類",
+    district: raw["行政區"] || raw["district"] || "",
+    addr: raw["案件地址"] || raw["address"] || "",
+    status: raw["案件狀態"] || raw["status"] || "處理中",
+    due: raw["應辦結日"] || raw["dueDate"] || "",
+    note: raw["案件內容"] || raw["content"] || ""
+  };
+}
+
+async function fetchData(){
+  setStatus("connecting");
+  const btn = document.getElementById('btnRefresh');
+  btn.classList.add('loading');
+  try{
+    const res = await fetch(API_URL, { method:"GET" });
+    if(!res.ok) throw new Error("HTTP " + res.status);
+    const json = await res.json();
+    // 後端 /api/cases 已經回傳正規化且篩選過中壢區的資料
+    const records = json.cases || [];
+    if(!records.length) throw new Error("empty");
+    ALL_CASES = records;
+    if(json.source === "stale-cache"){
+      setStatus("stale", json.fetchedAt);
+    } else {
+      setStatus("live", json.fetchedAt);
+    }
+  }catch(err){
+    ALL_CASES = SAMPLE_DATA;
+    setStatus("demo");
+  }finally{
+    btn.classList.remove('loading');
+    buildCategoryOptions();
+    render();
+  }
+}
+
+function setStatus(mode, fetchedAt){
+  const dot = document.getElementById('statusDot');
+  const text = document.getElementById('statusText');
+  const notice = document.getElementById('notice');
+  if(mode === "connecting"){
+    dot.className = "dot demo";
+    text.textContent = "正在向後端伺服器要資料…";
+    notice.classList.remove('show');
+  }else if(mode === "live"){
+    dot.className = "dot";
+    text.textContent = "資料已更新" + (fetchedAt ? "（" + new Date(fetchedAt).toLocaleString('zh-TW') + "）" : "");
+    notice.classList.remove('show');
+  }else if(mode === "stale"){
+    dot.className = "dot demo";
+    text.textContent = "政府平台暫時連不上，顯示上一次成功抓到的資料" + (fetchedAt ? "（" + new Date(fetchedAt).toLocaleString('zh-TW') + "）" : "");
+    notice.classList.add('show');
+  }else{
+    dot.className = "dot demo";
+    text.textContent = "後端尚未部署或無法連線，改用示範資料";
+    notice.classList.add('show');
+  }
+}
+
+function buildCategoryOptions(){
+  const sel = document.getElementById('fCategory');
+  const cats = [...new Set(ALL_CASES.map(c => c.category))].sort();
+  sel.innerHTML = '<option value="">全部類別</option>' + cats.map(c => `<option value="${c}">${c}</option>`).join('');
+}
+
+function withinRange(dateStr, days){
+  if(days === "all") return true;
+  const d = new Date(dateStr);
+  const now = new Date("2026-07-16");
+  const diff = (now - d) / (1000*60*60*24);
+  return diff <= Number(days);
+}
+
+function isOverdue(c){
+  if(c.status === "已結案") return false;
+  if(!c.due) return false;
+  return new Date(c.due) < new Date("2026-07-16");
+}
+
+function render(){
+  let rows = ALL_CASES.filter(c=>{
+    if(state.category && c.category !== state.category) return false;
+    if(state.status && c.status !== state.status) return false;
+    if(state.keyword){
+      const k = state.keyword.toLowerCase();
+      const hay = (c.addr + c.note + c.category).toLowerCase();
+      if(!hay.includes(k)) return false;
+    }
+    if(!withinRange(c.date, state.range)) return false;
+    return true;
+  });
+
+  if(state.sort === "urgent"){
+    rows.sort((a,b)=>{
+      const ao = isOverdue(a) ? 0 : 1, bo = isOverdue(b) ? 0 : 1;
+      if(ao !== bo) return ao - bo;
+      return new Date(a.due||'2099-01-01') - new Date(b.due||'2099-01-01');
+    });
+  }else{
+    rows.sort((a,b)=> new Date(b.date) - new Date(a.date));
+  }
+
+  // stats（依全部資料，不受篩選影響，反映整體現況）
+  document.getElementById('statTotal').textContent = ALL_CASES.length;
+  document.getElementById('statPending').textContent = ALL_CASES.filter(c=>c.status!=="已結案").length;
+  document.getElementById('statOverdue').textContent = ALL_CASES.filter(isOverdue).length;
+  document.getElementById('statWeek').textContent = ALL_CASES.filter(c=>withinRange(c.date,"7")).length;
+
+  document.getElementById('listCount').textContent = rows.length + " 筆";
+
+  const list = document.getElementById('caseList');
+  const empty = document.getElementById('emptyState');
+  if(!rows.length){
+    list.innerHTML = "";
+    empty.style.display = "block";
+    return;
+  }
+  empty.style.display = "none";
+
+  list.innerHTML = rows.map(c=>{
+    const overdue = isOverdue(c);
+    const stampClass = c.status === "已結案" ? "done" : (overdue ? "" : "pending");
+    const stampText = c.status === "已結案" ? "已 結 案" : (overdue ? "已 逾 期" : "處 理 中");
+    return `
+      <div class="case">
+        <div class="case-id mono">${c.id}<br>${c.date}</div>
+        <div class="case-main">
+          <div class="tag-row">
+            <span class="tag">${c.category}</span>
+            ${overdue ? '<span class="tag overdue">超過應辦結日</span>' : ''}
+          </div>
+          <div class="case-addr">${c.addr}</div>
+          <div class="case-meta">${c.note || ''}${c.due ? ' · 應辦結日 ' + c.due : ''}</div>
+        </div>
+        <div class="stamp ${stampClass}">${stampText}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+document.getElementById('fCategory').addEventListener('change', e=>{ state.category = e.target.value; render(); });
+document.getElementById('fStatus').addEventListener('change', e=>{ state.status = e.target.value; render(); });
+document.getElementById('fKeyword').addEventListener('input', e=>{ state.keyword = e.target.value; render(); });
+document.getElementById('btnRefresh').addEventListener('click', fetchData);
+
+document.querySelectorAll('#quickRange .chip').forEach(chip=>{
+  chip.addEventListener('click', ()=>{
+    document.querySelectorAll('#quickRange .chip').forEach(c=>c.classList.remove('active'));
+    chip.classList.add('active');
+    state.range = chip.dataset.range;
+    render();
+  });
+});
+document.querySelectorAll('#sortRow .chip').forEach(chip=>{
+  chip.addEventListener('click', ()=>{
+    document.querySelectorAll('#sortRow .chip').forEach(c=>c.classList.remove('active'));
+    chip.classList.add('active');
+    state.sort = chip.dataset.sort;
+    render();
+  });
+});
+
+fetchData();
+</script>
+</body>
+</html>
