@@ -252,6 +252,21 @@
   .stamp.done{border-color:var(--stamp-green); color:var(--stamp-green); transform:rotate(3deg);}
   .stamp.pending{border-color:var(--amber); color:#8a611f; transform:rotate(-2deg);}
 
+  .tag.complaint{background:var(--amber-soft); color:#8a611f;}
+  .push-badge{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px;
+    font-weight:600;
+    color:var(--navy-light);
+    border:1px solid var(--line);
+    border-radius:6px;
+    padding:5px 9px;
+    text-align:center;
+    min-width:40px;
+  }
+  .case-addr a{color:var(--ink); text-decoration:none;}
+  .case-addr a:hover{color:var(--navy-light); text-decoration:underline;}
+
   .empty{
     text-align:center;
     padding:60px 20px;
@@ -359,6 +374,14 @@
 
   <div class="cases" id="caseList"></div>
   <div class="empty" id="emptyState" style="display:none;">目前的篩選條件下沒有符合的案件，試著放寬類別或時間範圍。</div>
+
+  <div class="list-head" style="margin-top:40px;">
+    <h2>PTT 中壢相關討論</h2>
+    <div class="list-count mono" id="pttCount">0 筆</div>
+  </div>
+  <div class="sub" style="margin-bottom:14px;">來源：PTT「Taoyuan」板，自動掃描標題含「中壢」的貼文。標記「疑似民怨」的是關鍵字初步判斷，仍需要人工確認內容才能算數。</div>
+  <div class="cases" id="pttList"></div>
+  <div class="empty" id="pttEmpty" style="display:none;">目前沒有掃到中壢相關的 PTT 討論。</div>
 </div>
 
 <footer>
@@ -555,7 +578,45 @@ document.querySelectorAll('#sortRow .chip').forEach(chip=>{
   });
 });
 
+async function fetchPttPosts(){
+  try{
+    const res = await fetch("/api/ptt-posts");
+    const json = await res.json();
+    renderPtt(json.posts || []);
+  }catch(err){
+    renderPtt([]);
+  }
+}
+
+function renderPtt(posts){
+  const list = document.getElementById('pttList');
+  const empty = document.getElementById('pttEmpty');
+  document.getElementById('pttCount').textContent = posts.length + " 筆";
+
+  if(!posts.length){
+    list.innerHTML = "";
+    empty.style.display = "block";
+    return;
+  }
+  empty.style.display = "none";
+
+  list.innerHTML = posts.map(p => `
+    <div class="case">
+      <div class="case-id mono">${p.date || ''}<br>${p.author || ''}</div>
+      <div class="case-main">
+        <div class="tag-row">
+          <span class="tag">PTT · Taoyuan板</span>
+          ${p.likelyComplaint ? '<span class="tag complaint">疑似民怨</span>' : ''}
+        </div>
+        <div class="case-addr"><a href="${p.url}" target="_blank" rel="noopener">${p.title}</a></div>
+      </div>
+      <div class="push-badge">推 ${p.pushCount}</div>
+    </div>
+  `).join('');
+}
+
 fetchData();
+fetchPttPosts();
 </script>
 </body>
 </html>

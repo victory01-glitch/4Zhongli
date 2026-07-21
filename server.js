@@ -108,57 +108,136 @@ app.get("/api/cases", async (req, res) => {
 
 app.get("/api/health", (req, res) => res.json({ ok: true }));
 
-// 測試端點：驗證從這台伺服器能不能連到 Dcard 中壢話題頁
-app.get("/api/test-dcard", async (req, res) => {
-  const testUrl = "https://www.dcard.tw/topics/%E4%B8%AD%E5%A3%A2";
-  try {
-    const r = await fetch(testUrl, {
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
-      },
+// ---------- PTT「Taoyuan」板 中壢相關貼文掃描 ----------
+
+const cheerio = require("cheerio");
+
+const PTT_BOARD_URL = "https://www.ptt.cc/bbs/Taoyuan/index.html";
+const PTT_HEADERS = {
+  "User-Agent": "Mozilla/5.0 (compatible; ZhongliDashboardBot/0.1)",
+  Cookie: "over18=1",
+};
+
+// 用來初步判斷貼文是不是「民怨/陳情」類型，只看標題，抓到幾個常見字眼就好，
+// 不追求完美，抓漏比抓錯更能接受（漏掉的可以靠人工補，抓錯的話助理會白花時間看）。
+const COMPLAINT_KEYWORDS = [
+  "抱怨", "陳情", "投訴", "檢舉", "罰單", "違規", "違建", "擾民", "危險",
+  "坑洞", "淹水", "惹怨", "不滿", "抗議", "噪音", "塞車", "肇事", "事故",
+  "亂停", "違停", "施工", "停電", "斷水", "異味", "污染", "破損",
+];
+
+function guessIsComplaint(title) {
+  return COMPLAINT_KEYWORDS.some((k) => title.includes(k));
+}
+
+// 從文章連結取得年份、日期比較準：PTT 文章網址通常是 M.<unix timestamp>.A.XXX.html
+function extractDateFromUrl(url) {
+  const m = url.match(/M\.(\d{9,10})\./);
+  if (!m) return "";
+  const d = new Date(Number(m[1]) * 1000);
+  return d.toISOString().slice(0, 10);
+}
+
+async function fetchPttPage(url) {
+  const res = await fetch(url, { headers: PTT_HEADERS });
+  if (!res.ok) throw new Error(`PTT 回應錯誤：HTTP ${res.status}`);
+  return res.text();
+}
+
+// 從板頁面找出「上一頁」的連結，藉此往前翻頁
+function findPrevPageUrl(html) {
+  const $ = cheerio.load(html);
+  const prevLink = $(".btn-group-paging a")
+    .filter((i, el) => $(el).text().includes("上頁"))
+    .attr("href");
+  if (!prevLink) return null;
+  return "https://www.ptt.cc" + prevLink;
+}
+
+function parseArticles(html) {
+  const $ = cheerio.load(html);
+  const items = [];
+  $(".r-ent").each((i, el) => {
+    const titleEl = $(el).find(".title a");
+    const title = titleEl.text().trim();
+    const href = titleEl.attr("href");
+    if (!title || !href) return; // 沒有連結代表文章被刪除，跳過
+    const author = $(el).find(".meta .author").text().trim();
+    const pushText = $(el).find(".nrec").text().trim();
+    const url = "https://www.ptt.cc" + href;
+    items.push({
+      title,
+      url,
+      author,
+      pushCount: pushText || "0",
+      date: extractDateFromUrl(url),
     });
-    const text = await r.text();
-    res.json({
-      ok: r.ok,
-      status: r.status,
-      contentLength: text.length,
-      snippet: text.slice(0, 200),
-    });
-  } catch (err) {
-    res.status(502).json({
-      ok: false,
-      message: "連線失敗",
-      detail: err.message,
-      debugCause: err.cause ? { code: err.cause.code, message: err.cause.message } : null,
+  });
+  return items;
+}
+
+const PTT_CACHE_TTL_MS = 20 * 60 * 1000; // 20 分鐘快取，避免太常打 PTT
+let pttCache = { data: null, fetchedAt: 0 };
+
+async function fetchZhongliPostsFromPtt(pagesToScan = 6) {
+  let html = await fetchPttPage(PTT_BOARD_URL);
+  let allArticles = parseArticles(html);
+
+  for (let i = 1; i < pagesToScan; i++) {
+    const prevUrl = findPrevPageUrl(html);
+    if (!prevUrl) break;
+    html = await fetchPttPage(prevUrl);
+    allArticles = allArticles.concat(parseArticles(html));
+  }
+
+  const zhongliPosts = allArticles
+    .filter((a) => a.title.includes("中壢"))
+    .map((a) => ({
+      ...a,
+      likelyComplaint: guessIsComplaint(a.title),
+    }))
+    .sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+
+  return zhongliPosts;
+}
+
+// GET /api/ptt-posts — 前端呼叫這支拿 PTT 中壢相關貼文
+app.get("/api/ptt-posts", async (req, res) => {
+  const now = Date.now();
+  const cacheIsFresh = pttCache.data && now - pttCache.fetchedAt < PTT_CACHE_TTL_MS;
+
+  if (cacheIsFresh) {
+    return res.json({
+      source: "cache",
+      fetchedAt: new Date(pttCache.fetchedAt).toISOString(),
+      count: pttCache.data.length,
+      posts: pttCache.data,
     });
   }
-});
 
-// 測試端點：驗證從這台伺服器能不能連到 PTT 桃園板
-// 用來判斷「連不上」是政府網域專屬的問題，還是這台主機對台灣網站普遍連不上
-app.get("/api/test-ptt", async (req, res) => {
-  const testUrl = "https://www.ptt.cc/bbs/Taoyuan/index.html";
   try {
-    const r = await fetch(testUrl, {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (compatible; ZhongliDashboardBot/0.1)",
-        Cookie: "over18=1",
-      },
-    });
-    const text = await r.text();
+    const posts = await fetchZhongliPostsFromPtt(6);
+    pttCache = { data: posts, fetchedAt: now };
     res.json({
-      ok: r.ok,
-      status: r.status,
-      contentLength: text.length,
-      snippet: text.slice(0, 200),
+      source: "live",
+      fetchedAt: new Date(now).toISOString(),
+      count: posts.length,
+      posts,
     });
   } catch (err) {
+    if (pttCache.data) {
+      return res.json({
+        source: "stale-cache",
+        fetchedAt: new Date(pttCache.fetchedAt).toISOString(),
+        count: pttCache.data.length,
+        posts: pttCache.data,
+        warning: err.message,
+      });
+    }
     res.status(502).json({
-      ok: false,
-      message: "連線失敗",
+      source: "error",
+      message: "無法從 PTT 取得資料",
       detail: err.message,
-      debugCause: err.cause ? { code: err.cause.code, message: err.cause.message } : null,
     });
   }
 });
