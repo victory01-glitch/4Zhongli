@@ -108,6 +108,33 @@ app.get("/api/cases", async (req, res) => {
 
 app.get("/api/health", (req, res) => res.json({ ok: true }));
 
+// 測試端點：驗證從這台伺服器能不能連到 Dcard 中壢話題頁
+app.get("/api/test-dcard", async (req, res) => {
+  const testUrl = "https://www.dcard.tw/topics/%E4%B8%AD%E5%A3%A2";
+  try {
+    const r = await fetch(testUrl, {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
+      },
+    });
+    const text = await r.text();
+    res.json({
+      ok: r.ok,
+      status: r.status,
+      contentLength: text.length,
+      snippet: text.slice(0, 200),
+    });
+  } catch (err) {
+    res.status(502).json({
+      ok: false,
+      message: "連線失敗",
+      detail: err.message,
+      debugCause: err.cause ? { code: err.cause.code, message: err.cause.message } : null,
+    });
+  }
+});
+
 // 測試端點：驗證從這台伺服器能不能連到 PTT 桃園板
 // 用來判斷「連不上」是政府網域專屬的問題，還是這台主機對台灣網站普遍連不上
 app.get("/api/test-ptt", async (req, res) => {
