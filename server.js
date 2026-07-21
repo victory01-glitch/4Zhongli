@@ -205,8 +205,13 @@ async function fetchZhongliPostsFromPtt(pagesToScan = 6) {
     allArticles = allArticles.concat(relevant);
   }
 
+  const twoWeeksAgo = new Date();
+  twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
+  const cutoff = twoWeeksAgo.toISOString().slice(0, 10);
+
   return allArticles
     .map((a) => ({ ...a, likelyComplaint: guessIsComplaint(a.title) }))
+    .filter((a) => !a.date || a.date >= cutoff) // 只留最近兩週；日期解析不出來的先保留，避免漏掉
     .sort((a, b) => (b.date || "").localeCompare(a.date || ""));
 }
 
