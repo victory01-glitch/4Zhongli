@@ -379,7 +379,7 @@
     <h2>PTT 中壢相關討論</h2>
     <div class="list-count mono" id="pttCount">0 筆</div>
   </div>
-  <div class="sub" style="margin-bottom:14px;">來源：PTT「Taoyuan」板，自動掃描標題含「中壢」的貼文。標記「疑似民怨」的是關鍵字初步判斷，仍需要人工確認內容才能算數。</div>
+  <div class="sub" style="margin-bottom:14px;">來源：PTT「ChungLi」板（中壢專板，全部列入）+「Taoyuan」板（篩標題含「中壢」）。標記「疑似民怨」的是關鍵字初步判斷，仍需要人工確認內容才能算數。</div>
   <div class="cases" id="pttList"></div>
   <div class="empty" id="pttEmpty" style="display:none;">目前沒有掃到中壢相關的 PTT 討論。</div>
 </div>
@@ -605,7 +605,7 @@ function renderPtt(posts){
       <div class="case-id mono">${p.date || ''}<br>${p.author || ''}</div>
       <div class="case-main">
         <div class="tag-row">
-          <span class="tag">PTT · Taoyuan板</span>
+          <span class="tag">PTT · ${p.board || ''}板</span>
           ${p.likelyComplaint ? '<span class="tag complaint">疑似民怨</span>' : ''}
         </div>
         <div class="case-addr"><a href="${p.url}" target="_blank" rel="noopener">${p.title}</a></div>

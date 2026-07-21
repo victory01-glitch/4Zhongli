@@ -112,7 +112,10 @@ app.get("/api/health", (req, res) => res.json({ ok: true }));
 
 const cheerio = require("cheerio");
 
-const PTT_BOARD_URL = "https://www.ptt.cc/bbs/Taoyuan/index.html";
+const PTT_BOARDS = [
+  { name: "Taoyuan", url: "https://www.ptt.cc/bbs/Taoyuan/index.html", requireKeyword: true },
+  { name: "ChungLi", url: "https://www.ptt.cc/bbs/ChungLi/index.html", requireKeyword: false },
+];
 const PTT_HEADERS = {
   "User-Agent": "Mozilla/5.0 (compatible; ZhongliDashboardBot/0.1)",
   Cookie: "over18=1",
@@ -180,25 +183,31 @@ const PTT_CACHE_TTL_MS = 20 * 60 * 1000; // 20 分鐘快取，避免太常打 PT
 let pttCache = { data: null, fetchedAt: 0 };
 
 async function fetchZhongliPostsFromPtt(pagesToScan = 6) {
-  let html = await fetchPttPage(PTT_BOARD_URL);
-  let allArticles = parseArticles(html);
+  let allArticles = [];
 
-  for (let i = 1; i < pagesToScan; i++) {
-    const prevUrl = findPrevPageUrl(html);
-    if (!prevUrl) break;
-    html = await fetchPttPage(prevUrl);
-    allArticles = allArticles.concat(parseArticles(html));
+  for (const board of PTT_BOARDS) {
+    let html = await fetchPttPage(board.url);
+    let boardArticles = parseArticles(html).map((a) => ({ ...a, board: board.name }));
+
+    for (let i = 1; i < pagesToScan; i++) {
+      const prevUrl = findPrevPageUrl(html);
+      if (!prevUrl) break;
+      html = await fetchPttPage(prevUrl);
+      boardArticles = boardArticles.concat(
+        parseArticles(html).map((a) => ({ ...a, board: board.name }))
+      );
+    }
+
+    const relevant = board.requireKeyword
+      ? boardArticles.filter((a) => a.title.includes("中壢"))
+      : boardArticles; // ChungLi 板本身就是中壢板，不用再篩關鍵字
+
+    allArticles = allArticles.concat(relevant);
   }
 
-  const zhongliPosts = allArticles
-    .filter((a) => a.title.includes("中壢"))
-    .map((a) => ({
-      ...a,
-      likelyComplaint: guessIsComplaint(a.title),
-    }))
+  return allArticles
+    .map((a) => ({ ...a, likelyComplaint: guessIsComplaint(a.title) }))
     .sort((a, b) => (b.date || "").localeCompare(a.date || ""));
-
-  return zhongliPosts;
 }
 
 // GET /api/ptt-posts — 前端呼叫這支拿 PTT 中壢相關貼文
@@ -216,7 +225,7 @@ app.get("/api/ptt-posts", async (req, res) => {
   }
 
   try {
-    const posts = await fetchZhongliPostsFromPtt(6);
+    const posts = await fetchZhongliPostsFromPtt(4);
     pttCache = { data: posts, fetchedAt: now };
     res.json({
       source: "live",
